@@ -1,0 +1,520 @@
+<html>
+
+<!--- Start the Javascript that does all the hard work! --->
+<script type="text/javascript" charset="UTF-8">
+
+/************** Script by Wilma A. Bainbridge, 2016 ***********************
+
+Updated August 26, 2020: Minor updates:
+- Now records responses during fixation
+- Fixed bug not showing "goodbye" message
+- Uses different (more stable) variable to determine experiment trial length
+- Participants now have to press "R" to begin, to ensure correct window focus
+----------------------
+
+This script was generated to help you run your memorability experiment based on the parameters you want. I hope this is useful to you! If you use the memorability scores or this script in any of your work, please cite:
+
+***
+
+I've streamlined how the experiments are run here in comparison to the original Isola et al., 2011 study. This means there are some differences for the sake of making this easier to handle. Major differences include:
+
+- Participants can no longer pause, exit, and start again later (since you'd need to maintain a database of their information somewhere!)
+- Breaks are fixed time - participants currently can't continue on their own (because of how Javascript's setTimeout works)
+- There is no more practice run. Feel free to make a mini experiment to use as a practice run.
+- There is no feedback for button presses.
+
+The output you will get are four variables:
+ 1. imseq: The order of image files shown to participants. Make sure you have no duplicate file names!! (Even if they're in different directories.)
+ 2. imtypeseq: The order of trial types.
+ 		0 = Fixation trial
+ 		1 = First presentation of a target image
+ 		2 = Second presentation (target repeat) of a target image
+ 		3 = First presentation of a filler image
+ 		4 = Second presentation (vigilance repeat) of a filler image
+ 3. perfseq: The order of participant behavior for each trial.
+ 		11 = hit
+ 		12 = miss
+ 		13 = false alarm
+ 		14 = correct rejection
+ 4. ending: Where the participant ended the study. If they finished, it will be set to "completed". If they failed, it will be set to "failed@" and the percentage of trials completed. If they stopped in the middle, it will be blank (but you will know the number of trials completed by the other variables).
+
+One thing to keep in mind is that the most complex part of this script is optimizing the number of targets, fillers, timing, etc to maximize number of memorability scores and minimize the cost of the experiment. I have a beginning formula here that will give a good estimate but there may be more complicated designs you could imagine implementing (for example, adding more vigilance repeats or more target repeats dynamically and intelligently if there are not enough fillers). Feel free to try your hand at this -- you could even hard-code the image sequence yourself here instead of having it automatically calculated if you want complete control over everything!
+
+Also keep in mind that these scripts don't necessarily account for human error. You may need to get more hits than the # calculated because people will often fail / quit in the middle.
+
+Lastly, this script can be used as-is with Amazon Mechanical Turk, but you will have to implement your own server-side saving mechanism if you want to host it on your own website. The main values to save in the database can be find in the hidden input tags near the end of this script. If you'd like a tutorial on this, contact me and I'll write one up for people to use.
+
+Let me know if you'd like anything added / changed: brainbridgelab@gmail.com. I will not be very actively updating these scripts, but if I get enough requests for a feature or change, I will likely implement it!
+
+*/
+
+
+// parameters set by the experimenter
+var fixation_address = "http://www.wilmabainbridge.com/datasets/memorabilitycollector/fixation.jpg";
+var images = new Array("http://www.wilmabainbridge.com/datasets/memorabilitycollector/exampleimages/sun_bppwllojufniahga_crop.jpg","http://www.wilmabainbridge.com/datasets/memorabilitycollector/exampleimages/sun_bprbgoarbtsltwqg_crop.jpg","http://www.wilmabainbridge.com/datasets/memorabilitycollector/exampleimages/sun_bprimlgomczspbhy_crop.jpg","http://www.wilmabainbridge.com/datasets/memorabilitycollector/exampleimages/sun_bpsbdxqgqlngmhtv_crop.jpg","http://www.wilmabainbridge.com/datasets/memorabilitycollector/exampleimages/sun_bpsrbnzuqnmroqhk_crop.jpg","http://www.wilmabainbridge.com/datasets/memorabilitycollector/exampleimages/sun_bptlxavikcrboxia_crop.jpg","http://www.wilmabainbridge.com/datasets/memorabilitycollector/exampleimages/sun_bpzinxaftdnsxlbe_crop.jpg","http://www.wilmabainbridge.com/datasets/memorabilitycollector/exampleimages/sun_bqjeclkuelponlns_crop.jpg","http://www.wilmabainbridge.com/datasets/memorabilitycollector/exampleimages/sun_bqkzgarzoozoxszx_crop.jpg","http://www.wilmabainbridge.com/datasets/memorabilitycollector/exampleimages/sun_bqomfuqvjirmsdhb_crop.jpg","http://www.wilmabainbridge.com/datasets/memorabilitycollector/exampleimages/sun_bqovqkezipkgcqzs_crop.jpg","http://www.wilmabainbridge.com/datasets/memorabilitycollector/exampleimages/sun_bqtozbikfpfllurv_crop.jpg","http://www.wilmabainbridge.com/datasets/memorabilitycollector/exampleimages/sun_brjtazbjthomjqkn_crop.jpg","http://www.wilmabainbridge.com/datasets/memorabilitycollector/exampleimages/sun_brlarkhmizalsmqc_crop.jpg","http://www.wilmabainbridge.com/datasets/memorabilitycollector/exampleimages/sun_brnebkbpcrccymaq_crop.jpg","http://www.wilmabainbridge.com/datasets/memorabilitycollector/exampleimages/sun_brubqjgfomlfbbpn_crop.jpg","http://www.wilmabainbridge.com/datasets/memorabilitycollector/exampleimages/sun_brutjaqupcapafsf_crop.jpg","http://www.wilmabainbridge.com/datasets/memorabilitycollector/exampleimages/sun_brybtvotfajnjkco_crop.jpg","http://www.wilmabainbridge.com/datasets/memorabilitycollector/exampleimages/sun_brzrgetweuybobhn_crop.jpg","http://www.wilmabainbridge.com/datasets/memorabilitycollector/exampleimages/sun_bsaotdiiwmauzdat_crop.jpg","http://www.wilmabainbridge.com/datasets/memorabilitycollector/exampleimages/sun_bsccltramfvmxbsm_crop.jpg","http://www.wilmabainbridge.com/datasets/memorabilitycollector/exampleimages/sun_bsdsurysgegcamkm_crop.jpg","http://www.wilmabainbridge.com/datasets/memorabilitycollector/exampleimages/sun_bshiuzzrrjsniwbh_crop.jpg","http://www.wilmabainbridge.com/datasets/memorabilitycollector/exampleimages/sun_bsjsucbuwjrpfqil_crop.jpg","http://www.wilmabainbridge.com/datasets/memorabilitycollector/exampleimages/sun_bskostakkyaoohde_crop.jpg","http://www.wilmabainbridge.com/datasets/memorabilitycollector/exampleimages/sun_bsrnonmllauxoojx_crop.jpg","http://www.wilmabainbridge.com/datasets/memorabilitycollector/exampleimages/sun_bsuewujlvyegnflr_crop.jpg","http://www.wilmabainbridge.com/datasets/memorabilitycollector/exampleimages/sun_bswzkvlbskeqzzhq_crop.jpg","http://www.wilmabainbridge.com/datasets/memorabilitycollector/exampleimages/sun_btzxsbbmhagmxuiw_crop.jpg","http://www.wilmabainbridge.com/datasets/memorabilitycollector/exampleimages/sun_bubeehcgngkyqymr_crop.jpg","http://www.wilmabainbridge.com/datasets/memorabilitycollector/exampleimages/sun_buflvzteuojbfscg_crop.jpg","http://www.wilmabainbridge.com/datasets/memorabilitycollector/exampleimages/sun_buhemqpumlryxwua_crop.jpg","http://www.wilmabainbridge.com/datasets/memorabilitycollector/exampleimages/sun_buughjjvdywmepko_crop.jpg","http://www.wilmabainbridge.com/datasets/memorabilitycollector/exampleimages/sun_buvcqohiqgcgohcg_crop.jpg","http://www.wilmabainbridge.com/datasets/memorabilitycollector/exampleimages/sun_bvazhffigpnkxubv_crop.jpg","http://www.wilmabainbridge.com/datasets/memorabilitycollector/exampleimages/sun_bvdnfooaljqyfuzd_crop.jpg","http://www.wilmabainbridge.com/datasets/memorabilitycollector/exampleimages/sun_bvdwfwfrfblhpgtf_crop.jpg","http://www.wilmabainbridge.com/datasets/memorabilitycollector/exampleimages/sun_bvllfilrpazbqbik_crop.jpg","http://www.wilmabainbridge.com/datasets/memorabilitycollector/exampleimages/sun_bvrxtezjptwimeml_crop.jpg","http://www.wilmabainbridge.com/datasets/memorabilitycollector/exampleimages/sun_bvtqyjaxidcmvluq_crop.jpg","http://www.wilmabainbridge.com/datasets/memorabilitycollector/exampleimages/sun_bwejndqaidpijvac_crop.jpg","http://www.wilmabainbridge.com/datasets/memorabilitycollector/exampleimages/sun_bwfunqgiiejsfgwd_crop.jpg","http://www.wilmabainbridge.com/datasets/memorabilitycollector/exampleimages/sun_bwjzoiylakrbcjai_crop.jpg","http://www.wilmabainbridge.com/datasets/memorabilitycollector/exampleimages/sun_bwnjwgergehhafrz_crop.jpg","http://www.wilmabainbridge.com/datasets/memorabilitycollector/exampleimages/sun_bwqwrromkkilgfaa_crop.jpg","http://www.wilmabainbridge.com/datasets/memorabilitycollector/exampleimages/sun_bwrawynyugvvbkne_crop.jpg","http://www.wilmabainbridge.com/datasets/memorabilitycollector/exampleimages/sun_bwuzrimrucvtdrso_crop.jpg","http://www.wilmabainbridge.com/datasets/memorabilitycollector/exampleimages/sun_bwxdjujterquiodg_crop.jpg","http://www.wilmabainbridge.com/datasets/memorabilitycollector/exampleimages/sun_bxctqgbrjilpcbdc_crop.jpg","http://www.wilmabainbridge.com/datasets/memorabilitycollector/exampleimages/sun_bxfvgiupnzqicswi_crop.jpg","http://www.wilmabainbridge.com/datasets/memorabilitycollector/exampleimages/sun_bxlhswshwkzzkloy_crop.jpg","http://www.wilmabainbridge.com/datasets/memorabilitycollector/exampleimages/sun_bxnhrgjqjqemdrij_crop.jpg","http://www.wilmabainbridge.com/datasets/memorabilitycollector/exampleimages/sun_bxqjmnoybtmijszw_crop.jpg","http://www.wilmabainbridge.com/datasets/memorabilitycollector/exampleimages/sun_bxszvanexezydruv_crop.jpg","http://www.wilmabainbridge.com/datasets/memorabilitycollector/exampleimages/sun_bxutyvpmnthcrvjc_crop.jpg","http://www.wilmabainbridge.com/datasets/memorabilitycollector/exampleimages/sun_bxydmoucclhwuqsv_crop.jpg","http://www.wilmabainbridge.com/datasets/memorabilitycollector/exampleimages/sun_bxymhymwfcdomjtl_crop.jpg","http://www.wilmabainbridge.com/datasets/memorabilitycollector/exampleimages/sun_byifcwfqyewurytq_crop.jpg","http://www.wilmabainbridge.com/datasets/memorabilitycollector/exampleimages/sun_byrhtrhnbrxmjxay_crop.jpg","http://www.wilmabainbridge.com/datasets/memorabilitycollector/exampleimages/sun_bytlrcdhyzytgmyn_crop.jpg","http://www.wilmabainbridge.com/datasets/memorabilitycollector/exampleimages/sun_bytuhfnudnbsojli_crop.jpg","http://www.wilmabainbridge.com/datasets/memorabilitycollector/exampleimages/sun_byxoxbqwsyfdoglu_crop.jpg","http://www.wilmabainbridge.com/datasets/memorabilitycollector/exampleimages/sun_bzfmbqcmvdwoxayr_crop.jpg","http://www.wilmabainbridge.com/datasets/memorabilitycollector/exampleimages/sun_bzhshxubldrovsls_crop.jpg","http://www.wilmabainbridge.com/datasets/memorabilitycollector/exampleimages/sun_bzjxkzvtnwzubpyh_crop.jpg","http://www.wilmabainbridge.com/datasets/memorabilitycollector/exampleimages/sun_bzslvifnhpzzuvcf_crop.jpg","http://www.wilmabainbridge.com/datasets/memorabilitycollector/exampleimages/sun_bzvpimzdukgoqggo_crop.jpg","http://www.wilmabainbridge.com/datasets/memorabilitycollector/exampleimages/sun_bzxskbwunfydqkao_crop.jpg","http://www.wilmabainbridge.com/datasets/memorabilitycollector/exampleimages/sun_cadulwkkurwytfml_crop.jpg","http://www.wilmabainbridge.com/datasets/memorabilitycollector/exampleimages/sun_cawvnlmaazrbafxa_crop.jpg","http://www.wilmabainbridge.com/datasets/memorabilitycollector/exampleimages/sun_ctaavzqedpceeugc_crop.jpg","http://www.wilmabainbridge.com/datasets/memorabilitycollector/exampleimages/sun_daemcahvngursyym_crop.jpg","http://www.wilmabainbridge.com/datasets/memorabilitycollector/exampleimages/sun_dahdxwmcdluscvot_crop.jpg","http://www.wilmabainbridge.com/datasets/memorabilitycollector/exampleimages/sun_dahpgzyvzoiieugt_crop.jpg","http://www.wilmabainbridge.com/datasets/memorabilitycollector/exampleimages/sun_daumquysauetazoi_crop.jpg","http://www.wilmabainbridge.com/datasets/memorabilitycollector/exampleimages/sun_dbivlwlftepplffo_crop.jpg","http://www.wilmabainbridge.com/datasets/memorabilitycollector/exampleimages/sun_dbwhbuiciepkwesg_crop.jpg","http://www.wilmabainbridge.com/datasets/memorabilitycollector/exampleimages/sun_dbzffzbfnwwufybx_crop.jpg","http://www.wilmabainbridge.com/datasets/memorabilitycollector/exampleimages/sun_dcdizpfzbwapswsz_crop.jpg","http://www.wilmabainbridge.com/datasets/memorabilitycollector/exampleimages/sun_dcgxshrgjxqzomuk_crop.jpg","http://www.wilmabainbridge.com/datasets/memorabilitycollector/exampleimages/sun_dcimifbqrleawbla_crop.jpg","http://www.wilmabainbridge.com/datasets/memorabilitycollector/exampleimages/sun_dcixxapxvfaslrni_crop.jpg","http://www.wilmabainbridge.com/datasets/memorabilitycollector/exampleimages/sun_dcnlhalkgfsuyzdt_crop.jpg","http://www.wilmabainbridge.com/datasets/memorabilitycollector/exampleimages/sun_dcnvxfmjraaunrjr_crop.jpg","http://www.wilmabainbridge.com/datasets/memorabilitycollector/exampleimages/sun_ddzjpzhthgbasedh_crop.jpg","http://www.wilmabainbridge.com/datasets/memorabilitycollector/exampleimages/sun_dfejiwyeupjyjofp_crop.jpg","http://www.wilmabainbridge.com/datasets/memorabilitycollector/exampleimages/sun_dgybzhjzhbkixjnm_crop.jpg","http://www.wilmabainbridge.com/datasets/memorabilitycollector/exampleimages/sun_diadeftdhreqvroj_crop.jpg","http://www.wilmabainbridge.com/datasets/memorabilitycollector/exampleimages/sun_djheavokntfsacaw_crop.jpg","http://www.wilmabainbridge.com/datasets/memorabilitycollector/exampleimages/sun_dkaspzoiebgcgoje_crop.jpg","http://www.wilmabainbridge.com/datasets/memorabilitycollector/exampleimages/sun_dmadxkpanqgiwhnh_crop.jpg","http://www.wilmabainbridge.com/datasets/memorabilitycollector/exampleimages/sun_dmoyxkhhlbzptiwh_crop.jpg","http://www.wilmabainbridge.com/datasets/memorabilitycollector/exampleimages/sun_dnivwrlemkqnijsx_crop.jpg","http://www.wilmabainbridge.com/datasets/memorabilitycollector/exampleimages/sun_dtaonxgffwsxrlab_crop.jpg","http://www.wilmabainbridge.com/datasets/memorabilitycollector/exampleimages/sun_dtlhvolfukwaacor_crop.jpg","http://www.wilmabainbridge.com/datasets/memorabilitycollector/exampleimages/sun_duozdljikepukuie_crop.jpg","http://www.wilmabainbridge.com/datasets/memorabilitycollector/exampleimages/sun_dwksaxsgjjqeaetf_crop.jpg","http://www.wilmabainbridge.com/datasets/memorabilitycollector/exampleimages/sun_dwlzpjddrqkjpnzv_crop.jpg","http://www.wilmabainbridge.com/datasets/memorabilitycollector/exampleimages/sun_dygjrjfgxkjikobo_crop.jpg","http://www.wilmabainbridge.com/datasets/memorabilitycollector/exampleimages/sun_dzlgtkawufqinxhn_crop.jpg");
+var stimtime = 1500; // in milliseconds
+var isi = 1000; // in milliseconds
+var delayBetTargets = 120; // in seconds
+var delayBetVigilance = 5; // in trials. The size of image blocks
+var keytoWatch = "r"; // case doesn't matter
+var subsperim = 40; // how many subjects you want per image
+var payperhour = 5; // how much money you want to pay per hour
+var vigilancecutoff = 10; // the number of vigilances they're allowed to fail before being booted
+var facutoff = 20; // the number of false alarms they're allowed to make before being booted
+var timeBetweenBreaks = 300; // in seconds
+var maxBreakTime = 300; // in seconds
+
+// text set by the experimenter
+var failuretext = "<h2>Finished!</h2>Unfortunately you made too many errors and the game has ended. Press the <b>SUBMIT HIT</b> button to get credit for the hit.<br>";
+var donetext = "<h2>Finished!</h2>You have finished the task - great job! Press the <b>SUBMIT HIT</b> button to get credit for the hit.<br>";
+
+// global variables that are calculated later based on parameters
+var trialsBetTargets = 30; // in num trials
+var numfoils = 0;
+var numtargets = 0;
+var numtotalsubs = 0;
+var allc = 0; // overall sequence counter when building the sequence
+var experimentlength = 0;
+var paypersub = 0;
+var totalpay = 0;
+var trialsBetweenBreaks = 0;
+
+// full image sequence variables (these are the whole stream, with fixations built in)
+// deal with these for when running the experiment
+var fullsequence = []; // the sequence of everything (images plus fixation)
+var timesequence = []; // the sequence of the timings
+var typesequence = []; // the sequence of the image types
+var perfsequence = []; // the sequence of the performance
+var breakCounter = 0;
+
+// image-only sequence variables (the ordering without fixation or anything extra you add in)
+// deal with these when designing the stimulus presentation
+var imtypeseq = []; // the sequence of the image types
+var allimgseq = []; // the sequence of all the images
+var performanceseq = []; // the sequence of performance
+var imCount = -1; // trial number that is being shown. Starts from -1 because of setTimeOut quirks
+
+// tracking performance (to determine if they can continue)
+/* NOTE: This could be implemented in several different ways. For now I will do it as kicking someone out if they reach a certain number of failures, though you could imagine many other ways: 1) do it based on proportion of failures, 2) resetting if they get something right, 3) kicking out based on back-to-back failures, etc. You can try fiddling with determineFailure() to implement your own method!
+*/
+var vigilancefails = 0;
+var falsealarmcounts = 0;
+var kickedOut = 0;
+
+// output variables
+var imgstring = "";
+var imtypestring = "";
+var perfstring = "";
+
+// ID constants for image type
+const FIXATION = 0;
+const TARGET = 1;
+const REPEAT = 2; // target repeat
+const FILLER = 3;
+const VIGILANCE = 4; // vigilant repeat
+
+// ID constants for performance
+const HIT = 11;
+const MISS = 12;
+const FALSEALARM = 13;
+const CORRECTREJECTION = 14;
+
+/****************************************Functions*****************************************/
+
+// key press listener
+document.onkeydown = function(key){ processResponse(key);};
+
+// preload and then start
+function buttonPress(){
+	// disable the Start Button once started
+	document.getElementById("startbutton").innerHTML = "Experiment Running...";
+	document.getElementById("startbutton").disabled = true;
+	// now start the experiment
+	preloadEverything();
+	document.getElementById("performancerecord").innerHTML = "Press the <b>R key</b> to start. If it doesn't work, make sure to click in this browser window first.";
+}
+
+// recursive function that shows the images in a sequence
+function animateSequence(){
+
+	// save the performance of the previous trial
+	saveProgress();
+
+	// check if they've failed too much
+	determineFailure();
+	if (kickedOut){
+		showFailure();
+		return;
+	}
+
+	// check if it's time for a break
+	if (breakCounter >= trialsBetweenBreaks) {
+		giveBreak(0);
+		breakCounter = -1;
+		return;
+	}
+	breakCounter++;
+
+	imCount++; // have to increment before the trial because of setTimeOut
+	if (imCount == fullsequence.length){
+		showEnding();
+		return;
+	}
+	document.getElementById("stimulus").src = fullsequence[imCount];
+
+	setTimeout("animateSequence()", timesequence[imCount]);
+}
+
+// preload and calculate everything
+function preloadEverything() {
+	calculateProps(); // calculate target and filler proportions
+	/* NOTE: If you decide to manually separate the targets and foils, set their amounts here to
+	override what was calculated in calculateProps(). We still need to run calculateProps() for other values.
+	For example:
+		numtargets = 100;
+		numfoils = 500;
+	*/
+	makeImSequence(); // get the image order
+	calculateTotalPay(); // calculate payment
+	buildFullSequence(); // build the sequence with the images and fixation
+	// document.getElementById("startbutton").disabled = false;
+}
+
+// allows the participant to take a break
+function giveBreak(going){
+	if (going){
+		document.getElementById("performancerecord").innerHTML = '';
+		setTimeout("animateSequence()", timesequence[imCount])
+		return;
+	}
+	document.getElementById("stimulus").src = fixation_address;
+	document.getElementById("performancerecord").innerHTML = '<h2>Break time!</h2>Good job - you will now get a break. Please do not break for longer than ' + maxBreakTime + ' seconds or the HIT will continue without you. Press "<b>C</b>" to continue.';
+
+	setTimeout("giveBreak(1)", maxBreakTime*1000);
+}
+
+// builds the full sequence with both images and fixations, as well as timings
+function buildFullSequence(){
+	var i = 0;
+	var imcounter = 0;
+	while (i < imtypeseq.length*2){
+		// add an image
+		fullsequence[i] = images[allimgseq[imcounter]]; // get the image in that order
+		typesequence[i] = imtypeseq[imcounter];
+		timesequence[i] = stimtime;
+		perfsequence[i] = performanceseq[imcounter];
+		i++;
+		imcounter++;
+
+		// add a fixation
+		fullsequence[i] = fixation_address;
+		typesequence[i] = FIXATION;
+		timesequence[i] = isi;
+		perfsequence[i] = FIXATION;
+		i++;
+	}
+	console.log("Done building the full sequence.");
+}
+
+// get the key and respond
+function processResponse(key){
+	if(String.fromCharCode(key.keyCode).toLowerCase() == keytoWatch.toLowerCase()){ // if they pressed the desired key
+		var trialtype = typesequence[imCount];
+		if (imCount<0) { // they're pressing to start
+			document.getElementById("performancerecord").innerHTML = "";
+			animateSequence();
+		}
+		if ((trialtype == FIXATION) && imCount > 0) { // if it's fixation, get their response for the prior trial
+			trialtype = typesequence[imCount-1];
+		}
+		if (trialtype == REPEAT | trialtype == VIGILANCE) { // they correctly pressed the button!
+			perfsequence[imCount] = HIT;
+			console.log("Hit!");
+		} else if (trialtype == TARGET | trialtype == FILLER) { // they shouldn't have pressed
+			perfsequence[imCount] = FALSEALARM;
+			console.log("False alarm!");
+		}
+	}
+}
+
+// decide if they've failed too much
+function determineFailure(){
+	if (perfsequence[imCount] == FALSEALARM){
+		falsealarmcounts++;
+		console.log("False alarm count: " + falsealarmcounts);
+	}
+	if (falsealarmcounts >= facutoff){ // they've false alarmed too often!
+		kickedOut = 1;
+	}
+
+	if (perfsequence[imCount] == MISS & typesequence[imCount] == VIGILANCE){
+		vigilancefails++;
+		console.log("Vigilance miss count: " + vigilancefails);
+	}
+	if (vigilancefails >= vigilancecutoff){
+		kickedOut = 1;
+	}
+}
+
+// visually show their failure!
+function showFailure(){
+	document.getElementById("performancerecord").innerHTML = failuretext;
+	propcompleted = imCount/fullsequence.length*100;
+	propcompleted = propcompleted.toFixed(2); // round to 2 decimal places
+	document.getElementById("endingout").value = "failed@" + propcompleted + "%";
+}
+
+// end the game if they make it to the end!
+function showEnding(){
+	document.getElementById("performancerecord").innerHTML = donetext;
+	document.getElementbyId("endingout").value = "completed";
+}
+
+// create the memorability-based image sequence
+function makeImSequence(){
+
+	/* NOTE: This code assumes you want to get the memorability scores of all of your images. If you instead have images you already know will be sorted as target vs. filler, you can edit that here. To do that:
+		1. Input images as targets followed by fillers (in the textbox list of images in the other frame, or at the top with var images = ...
+		2. Set numtargets to your number of targets
+		3. Remove allImArray = shuffleArray(allImArray).
+	The reason I haven't implemented this is because this depends on you choosing a good number of targets and fillers (rather than me calculating it for you here) and so it takes some thought
+	*/
+
+	var allImArray = populateArray(0, images.length);
+	allImArray = shuffleArray(allImArray); // Comment this if you want to manually determine the targets and fillers
+	var targetIms = allImArray.slice(0, numtargets);
+	var fillerIms = allImArray.slice(numtargets, allImArray.length);
+	var imblock = [];
+	var typeblock = [];
+	var perfblock = [];
+
+	targetIms = shuffleArray(targetIms);
+	repeatIms = shuffleArray(targetIms);
+	fillerIms = shuffleArray(fillerIms);
+
+	tc = 0; // target counter
+	fc = 0; // filler counter
+	ofbc = 0; // old filler block counter
+	rc = 0; // repeat counter
+	allc = 0; // overall sequence counter
+
+	// now make pseudorandomized image blocks of 4 trials each
+	oldfillblock = [];
+
+	while (rc < repeatIms.length & fc < fillerIms.length){
+		var c = 0; // mini-block counter
+
+		if (tc < targetIms.length) { // TRIAL 1: a new targets (if there are still new ones to add)
+			imblock[c] = targetIms[tc];
+			typeblock[c] = TARGET;
+			perfblock[c] = CORRECTREJECTION; // default: no response means CR
+			tc++; c++; allc++;
+		} else { // if we're out of new targets, put in a regular filler
+			imblock[c] = fillerIms[fc];
+			typeblock[c] = FILLER;
+			perfblock[c] = CORRECTREJECTION; // default: no response means CR
+			oldfillblock[ofbc] = fillerIms[fc];
+			c++; allc++; ofbc++; fc++;
+		}
+
+		if (oldfillblock.length > 0) { // TRIAL 2: vigilance repeat from the last block
+			oldfillblock = shuffleArray(oldfillblock);
+			imblock[c] = oldfillblock[0];
+			typeblock[c] = VIGILANCE;
+			perfblock[c] = MISS; // default: no response means they missed it
+			c++; allc++;
+			oldfillblock = []; ofbc = 0;
+		} else { // if there was no last block, put in a regular filler
+			imblock[c] = fillerIms[fc];
+			typeblock[c] = FILLER;
+			perfblock[c] = CORRECTREJECTION;
+			oldfillblock[ofbc] = fillerIms[fc];
+			c++; allc++; ofbc++; fc++;
+		}
+
+		if (allc > trialsBetTargets) { // TRIAL 3: if enough delay has passed, can do target repeats
+			imblock[c] = repeatIms[rc];
+			typeblock[c] = REPEAT;
+			perfblock[c] = MISS;
+			rc++; c++; allc++;
+		} else{ // if it's not time for the target repeats yet, put in a regular filler
+			imblock[c] = fillerIms[fc];
+			typeblock[c] = FILLER;
+			perfblock[c] = CORRECTREJECTION;
+			oldfillblock[ofbc] = fillerIms[fc];
+			c++; allc++; ofbc++; fc++;
+		}
+
+		for (var i = 0; i < delayBetVigilance-3; i++){ // remaining trials: filler
+			if (fc < fillerIms.length) { // only if there are fillers left to fill
+				imblock[c] = fillerIms[fc];
+				typeblock[c] = FILLER;
+				perfblock[c] = CORRECTREJECTION;
+				oldfillblock[ofbc] = fillerIms[fc];
+				c++; allc++; ofbc++; fc++;
+			}
+		}
+
+		[imblock, typeblock, perfblock] = shuffleArrays([imblock, typeblock, perfblock]);
+
+		allimgseq = allimgseq.concat(imblock);
+		imtypeseq = imtypeseq.concat(typeblock);
+		performanceseq = performanceseq.concat(perfblock);
+
+	}
+
+	console.log("Done making the image sequence!");
+}
+
+// calculate the proportions of targets and foils
+function calculateProps(){
+	var trialtime = stimtime + isi;
+	trialsBetTargets = Math.floor(delayBetTargets*1000 / trialtime);
+	var B = trialsBetTargets;
+	var S = delayBetVigilance;
+	var C = images.length;
+
+	numfoils = (S-1 + (S-2)*(C+(B/S)-1)-(B/S))/(S-1); // derived formula for how many foils you can have that satisfy your constraints
+
+	/* Derivation comes from this:
+	variables:
+	C = # images, T = # targets, F = # foils, S = number of trials per block, B = minimum # of trials between targets
+	abbreviations:
+	t = target, f = foil, v = vigilance repeat, r = target repeat
+
+	F = (first block is 1 t, the rest f) + (blocks before r starts is 1 t, 1 v, the rest f) + (remaining blocks are 1 t, 1 v, 1 r, the rest f) + (except for blocks when you're not showing any new t, put back a f to fill that space)
+	F = (S-1) + (S-2)(B/S - 1) + (S-3)(T) + (T - B/S)		C = T + F
+	F = (S-1) + (S-2)(B/S - 1) + (S-3)(C-F) + (C-F - B/S)
+	...
+	F = (S-1 + (S-2)(C + B/S - 1) - B/S)/(S-1)
+
+	*/
+	numtargets = C - numfoils;
+
+	numfoils = Math.floor(numfoils);
+	numtargets = Math.ceil(numtargets);
+
+	// calculate how many subjects will be needed total
+	var proptargets = C / numtargets * subsperim;
+
+	// calculate how many trials before a break
+	trialsBetweenBreaks = Math.ceil(timeBetweenBreaks*1000/trialtime);
+
+	console.log("Calculated the proportions of images.");
+}
+
+// calculate the total pay for the whole study
+function calculateTotalPay(){
+	// calculate how many subjects will be needed total
+	var proptargets = images.length / numtargets;
+	numtotalsubs = proptargets * subsperim;
+
+	experimentlength = (allc * (stimtime + isi)/1000)/60;
+	paypersub = experimentlength/60 * payperhour;
+	totalpay = paypersub * numtotalsubs;
+
+	console.log("Calculated the pay amounts.");
+}
+
+function reportVariables(){
+	var report = " With your " + images.length + " total images, if you want " + delayBetTargets + "s between target images,\n You will need " + numtargets + " targets and " + numfoils + " foils.\n This will result in an experiment that is " + experimentlength + "min long.\n To get " + subsperim + " subjects per target image, you will need " + numtotalsubs + " total subjects.\n At a rate of $" + payperhour + " per hour, each experiment will cost $" + paypersub + ",\n Or $" + totalpay + " for the whole study.";
+
+	console.log(report)
+}
+
+// save to the output variables the performance and sequence completed so far
+function saveProgress(){
+	// get rid of the base address again just to shrink the length of the value
+	if (imCount >= 0) {
+		var tempimg = fullsequence[imCount];
+		tempimg = tempimg.substring(tempimg.lastIndexOf("/")+1);
+		if (imCount > 0) {
+			imgstring = imgstring + ",";
+			imtypestring = imtypestring + ",";
+			perfstring = perfstring + ",";
+		}
+		imgstring = imgstring + tempimg;
+		imtypestring = imtypestring + typesequence[imCount];
+		perfstring = perfstring + perfsequence[imCount];
+		document.getElementById("imseqout").value = imgstring;
+		document.getElementById("imtypeseqout").value = imtypestring;
+		document.getElementById("perfseqout").value = perfstring;
+		}
+}
+
+/*************************************** General useful functions **********************************************/
+
+// populate an array
+function populateArray(start, end){
+	array = [];
+	for (var i = start; i < end; i++){
+		array[i] = i;
+	}
+	return array;
+}
+
+// shuffle an array
+function shuffleArray(array) {
+    for (var i = array.length - 1; i > 0; i--) {
+        var j = Math.floor(Math.random() * (i + 1));
+        var temp = array[i];
+        array[i] = array[j];
+        array[j] = temp;
+    }
+    return array;
+}
+
+// shuffle multiple arrays with the same ordering (must all be same length)
+function shuffleArrays(arrays){
+	for (var i = arrays[0].length - 1; i > 0; i--) {
+		var j = Math.floor(Math.random() * (i + 1));
+		for (var an = 0; an < arrays.length; an++) {
+			var temp = arrays[an][i];
+			arrays[an][i] = arrays[an][j];
+			arrays[an][j] = temp;
+		}
+	}
+	return arrays;
+}
+
+// count the number of occurrences of a value in an array
+function countOccurences(array, value){
+	var counter = 0;
+	for (var i = 0; i < array.length; i++){
+		if (array[i] == value){
+			counter++;
+		}
+	}
+	return counter;
+}
+
+
+</script>
+<body>
+
+<form autocomplete="off">
+
+<!--- These are the hidden variables that get outputted to AMT --->
+<input type = "hidden" name = "imseq" id = "imseqout" value = "">
+<input type = "hidden" name = "imtypeseq" id = "imtypeseqout" value = "">
+<input type = "hidden" name = "perfseq" id = "perfseqout" value = "">
+<input type = "hidden" name = "ending" id = "endingout" value = "">
+
+<center>
+<h1>Memory Test</h1>
+	<table style="border:1px solid black"><tr>
+	<td style="border:1px solid black"><center><p><span id = "instructions">You will see a stream of images. Press the <b>'r'</b> key any time you see an <b>image</b> you saw before. Press when you see the image and not during the '+'. If you make too many errors, the game will finish. This will take approximately 5 minutes.</span></p></center></td></tr>
+	<tr><td height=450 width=450 style="vertical-align:middle"><center>
+	<span id = "performancerecord">
+	</span>
+	<div id = "imagesequence"><img id = "stimulus" src = "http://www.wilmabainbridge.com/datasets/memorabilitycollector/fixation.jpg"></div>
+	</center></td></tr></table>
+<br>
+<h3><button type = "button" id = "startbutton" onclick = "buttonPress()" autocomplete="off" style="border: 1px solid black; height:70; width:250; border-radius:12px">Click to Start</button></h3><br>
+<p><span id = "consentinfo">By making judgements about these images, you are participating in a study being performed by cognitive scientists in the Blah Blah Lab at Blah Blah University. If you have questions about this research, please contact Dr. Blah at blah@blah.edu. Your participation in this research is voluntary. You may decline further participation, at any time, without adverse consequences. Your anonymity is assured; the researchers who have requested your participation will not receive any personal information about you.</span></p>
+<b>Click here to submit your HIT.</b> Only submit when completed, or you won't get full payment! If you decide to stop halfway, you can click this to end.<br><br>
+<input type = "submit" id="submitbutton" name="Submit HIT" value="Submit HIT">
+</center>
+</form>
+</body>
+</html>
